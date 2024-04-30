@@ -69,10 +69,12 @@ class P1Reader {
      * output, the Stream is assumed to be already set up (e.g. baud
      * rate configured).
      */
-    P1Reader(Stream *stream, uint8_t req_pin)
+    P1Reader(Stream* stream, gpio_num_t req_pin = GPIO_NUM_NC)
       : stream(stream), req_pin(req_pin), once(false), state(State::DISABLED_STATE) {
-      pinMode(req_pin, OUTPUT);
-      digitalWrite(req_pin, LOW);
+      if (req_pin != GPIO_NUM_NC) {
+        pinMode(req_pin, OUTPUT);
+        digitalWrite(req_pin, LOW);
+      }
     }
 
     /**
@@ -84,7 +86,9 @@ class P1Reader {
      *                 periodically.
      */
     void enable(bool once) {
-      digitalWrite(this->req_pin, HIGH);
+      if (req_pin != GPIO_NUM_NC) {
+        digitalWrite(this->req_pin, HIGH);
+      }
       this->state = State::WAITING_STATE;
       this->once = once;
     }
@@ -95,12 +99,15 @@ class P1Reader {
      * clear() is called.
      */
     void disable() {
-      digitalWrite(this->req_pin, LOW);
+      if (req_pin != GPIO_NUM_NC) {
+        digitalWrite(this->req_pin, LOW);
+      }
       this->state = State::DISABLED_STATE;
-      if (!this->_available)
+      if (!this->_available) {
         this->buffer = "";
+      }
       // Clear any pending bytes
-      while(this->stream->read() >= 0) /* nothing */;
+      while (this->stream->read() >= 0) /* nothing */;
     }
 
     /**
@@ -117,16 +124,18 @@ class P1Reader {
      * (just like available).
      */
     bool loop() {
-      while(true) {
+      while (true) {
         if (state == State::CHECKSUM_STATE) {
           // Let the Stream buffer the CRC bytes. Convert to size_t to
           // prevent unsigned vs signed comparison
-          if ((size_t)this->stream->available() < CrcParser::CRC_LEN)
+          if ((size_t)this->stream->available() < CrcParser::CRC_LEN) {
             return false;
+          }
 
           char buf[CrcParser::CRC_LEN];
-          for (uint8_t i = 0; i < CrcParser::CRC_LEN; ++i)
+          for (uint8_t i = 0; i < CrcParser::CRC_LEN; ++i) {
             buf[i] = this->stream->read();
+          }
 
           ParseResult<uint16_t> crc = CrcParser::parse(buf, buf + lengthof(buf));
 
@@ -137,16 +146,18 @@ class P1Reader {
             // Message complete, checksum correct
             this->_available = true;
 
-            if (once)
-             this->disable();
+            if (once) {
+              this->disable();
+            }
 
             return true;
           }
         } else {
           // For other states, read bytes one by one
           int c = this->stream->read();
-          if (c < 0)
+          if (c < 0) {
             return false;
+          }
 
           switch (this->state) {
             case State::DISABLED_STATE:
@@ -163,10 +174,14 @@ class P1Reader {
             case State::READING_STATE:
               // Include the ! in the CRC
               this->crc = _crc16_update(this->crc, c);
-              if (c == '!')
+              if (c == '!') {
                 this->state = State::CHECKSUM_STATE;
-              else
+              }
+              else {
+                //log raw data
+                // Serial.print((char)c);
                 buffer.concat((char)c);
+              }
 
               break;
             case State::CHECKSUM_STATE:
@@ -184,7 +199,7 @@ class P1Reader {
     /**
      * Returns the data read so far.
      */
-    const String &raw() {
+    const String& raw() {
       return buffer;
     }
 
@@ -198,12 +213,13 @@ class P1Reader {
      * message is appended to that string.
      */
     template<typename... Ts>
-    bool parse(ParsedData<Ts...> *data, String *err) {
-      const char *str = buffer.c_str(), *end = buffer.c_str() + buffer.length();
+    bool parse(ParsedData<Ts...>* data, String* err) {
+      const char* str = buffer.c_str(), *end = buffer.c_str() + buffer.length();
       ParseResult<void> res = P1Parser::parse_data(data, str, end);
 
-      if (res.err && err)
+      if (res.err && err) {
         *err = res.fullError(str, end);
+      }
 
       // Clear the message
       this->clear();
@@ -222,8 +238,8 @@ class P1Reader {
     }
 
   protected:
-    Stream *stream;
-    uint8_t req_pin;
+    Stream* stream;
+    gpio_num_t req_pin;
     enum class State : uint8_t {
       DISABLED_STATE,
       WAITING_STATE,
