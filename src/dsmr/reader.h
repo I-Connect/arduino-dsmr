@@ -123,13 +123,33 @@ class P1Reader {
      * once every loop. Returns true if a complete message is available
      * (just like available).
      */
+    uint32_t start = 0;
+    bool reading = false;
+
     bool loop() {
+
+      if (!reading) {
+        reading = true;
+        start = millis();
+      }
+
       while (true) {
+
+        if (millis() - start > 1000) {
+          this->state = State::WAITING_STATE;
+          this->clear(true);
+          if (once) {
+            this->disable();
+          }
+          reading = false;
+          return false;
+        }
+
         if (state == State::CHECKSUM_STATE) {
           // Let the Stream buffer the CRC bytes. Convert to size_t to
           // prevent unsigned vs signed comparison
           if ((size_t)this->stream->available() < CrcParser::CRC_LEN) {
-            return false;
+            continue;
           }
 
           char buf[CrcParser::CRC_LEN];
@@ -149,14 +169,15 @@ class P1Reader {
             if (once) {
               this->disable();
             }
-
+            reading = false;
             return true;
           }
         } else {
           // For other states, read bytes one by one
           int c = this->stream->read();
+
           if (c < 0) {
-            return false;
+            continue;
           }
 
           switch (this->state) {
@@ -168,12 +189,22 @@ class P1Reader {
                 this->state = State::READING_STATE;
                 // Include the / in the CRC
                 this->crc = _crc16_update(0, c);
-                this->clear();
+                this->clear(true);
               }
               break;
             case State::READING_STATE:
               // Include the ! in the CRC
               this->crc = _crc16_update(this->crc, c);
+              if (c == '/') {
+                //error, during reading state this char should not occur
+                this->state = State::WAITING_STATE;
+                this->clear(true);
+                if (once) {
+                  this->disable();
+                }
+                reading = false;
+                return false;
+              }
               if (c == '!') {
                 this->state = State::CHECKSUM_STATE;
               }
@@ -181,6 +212,7 @@ class P1Reader {
                 //log raw data
                 // Serial.print((char)c);
                 buffer.concat((char)c);
+
               }
 
               break;
@@ -230,8 +262,8 @@ class P1Reader {
     /**
      * Clear any complete message from the buffer.
      */
-    void clear() {
-      if (_available) {
+    void clear(bool clearAll = false) {
+      if (_available || clearAll) {
         buffer = "";
         _available = false;
       }
