@@ -103,7 +103,7 @@ class P1Reader {
       if (req_pin != NO_PIN) 
         digitalWrite(this->req_pin, LOW);
       this->state = State::DISABLED_STATE;
-      if (!this->_available) 
+      if (!this->_available)
         this->buffer = "";
       // Clear any pending bytes
       while(this->stream->read() >= 0) /* nothing */;
@@ -127,7 +127,7 @@ class P1Reader {
         if (state == State::CHECKSUM_STATE) {
           // Let the Stream buffer the CRC bytes. Convert to size_t to
           // prevent unsigned vs signed comparison
-          if ((size_t)this->stream->available() < CrcParser::CRC_LEN) 
+          if ((size_t)this->stream->available() < CrcParser::CRC_LEN)
             return false;
 
           char buf[CrcParser::CRC_LEN];
