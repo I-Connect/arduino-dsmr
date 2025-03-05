@@ -213,14 +213,19 @@ struct NumParser {
       value *= 10;
 
     // If a unit was passed, check that the unit in the messages
-    // messages the unit passed.
+    // matches the unit passed.
     if (unit && *unit) {
       
       if (num_end >= end || *num_end != '*') {
         if (value != 0)
           return res.fail(F("Missing unit"), num_end);
         else
-          return res.succeed(value).until(num_end + 1); // Skip )
+          // if no unit after value 0, then the ) must still be there
+          if (*num_end == ')')
+            return res.succeed(value).until(num_end + 1) // Skip )
+          else
+            // something else 
+            return res.fail((const __FlashStringHelper*)INVALID_UNIT, unit_start);
       }
 
       const char *unit_start = ++num_end; // skip *
