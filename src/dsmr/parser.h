@@ -349,7 +349,8 @@ struct P1Parser {
 
     // Check CRC
     if (check_res.result != crc) {
-      Serial.printf("Checksum mismatch %x != %x\n", check_res.result, crc);
+      // log expected checksum, convenient for creating test data
+      // Serial.printf("Checksum mismatch %x != %x\n", check_res.result, crc); 
       return res.fail(F("Checksum mismatch"), data_end + 1);
     }
 
