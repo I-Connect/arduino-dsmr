@@ -39,6 +39,8 @@
 
 namespace dsmr {
 
+#define NO_PIN 0xff
+
 /**
  * Controls the request pin on the P1 port to enable (periodic)
  * transmission of messages and reads those messages.
@@ -69,10 +71,12 @@ class P1Reader {
      * output, the Stream is assumed to be already set up (e.g. baud
      * rate configured).
      */
-    P1Reader(Stream *stream, uint8_t req_pin)
+    P1Reader(Stream *stream, uint8_t req_pin = NO_PIN)
       : stream(stream), req_pin(req_pin), once(false), state(State::DISABLED_STATE) {
-      pinMode(req_pin, OUTPUT);
-      digitalWrite(req_pin, LOW);
+      if (req_pin != NO_PIN) {
+        pinMode(req_pin, OUTPUT);
+        digitalWrite(req_pin, LOW);
+      }
     }
 
     /**
@@ -84,7 +88,8 @@ class P1Reader {
      *                 periodically.
      */
     void enable(bool once) {
-      digitalWrite(this->req_pin, HIGH);
+      if (req_pin != NO_PIN) 
+        digitalWrite(this->req_pin, HIGH);
       this->state = State::WAITING_STATE;
       this->once = once;
     }
@@ -95,7 +100,8 @@ class P1Reader {
      * clear() is called.
      */
     void disable() {
-      digitalWrite(this->req_pin, LOW);
+      if (req_pin != NO_PIN) 
+        digitalWrite(this->req_pin, LOW);
       this->state = State::DISABLED_STATE;
       if (!this->_available)
         this->buffer = "";
@@ -138,7 +144,7 @@ class P1Reader {
             this->_available = true;
 
             if (once)
-             this->disable();
+              this->disable();
 
             return true;
           }
