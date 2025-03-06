@@ -213,10 +213,21 @@ struct NumParser {
       value *= 10;
 
     // If a unit was passed, check that the unit in the messages
-    // messages the unit passed.
+    // matches the unit passed.
     if (unit && *unit) {
-      if (num_end >= end || *num_end != '*')
-        return res.fail(F("Missing unit"), num_end);
+      
+      if (num_end >= end || *num_end != '*') {
+        if (value != 0)
+          return res.fail(F("Missing unit"), num_end);
+        else
+          // if no unit after value 0, then the ) must still be there
+          if (*num_end == ')')
+            return res.succeed(value).until(num_end + 1) // Skip )
+          else
+            // something else 
+            return res.fail((const __FlashStringHelper*)INVALID_UNIT, unit_start);
+      }
+
       const char *unit_start = ++num_end; // skip *
       while(num_end < end && *num_end != ')' && *unit) {
         // Next character in units do not match?
@@ -337,8 +348,11 @@ struct P1Parser {
       return check_res;
 
     // Check CRC
-    if (check_res.result != crc)
+    if (check_res.result != crc) {
+      // log expected checksum, convenient for creating test data
+      // Serial.printf("Checksum mismatch %x != %x\n", check_res.result, crc); 
       return res.fail(F("Checksum mismatch"), data_end + 1);
+    }
 
     res = parse_data(data, data_start, data_end, unknown_error);
     res.next = check_res.next;
