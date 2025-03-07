@@ -222,10 +222,10 @@ struct NumParser {
         else
           // if no unit after value 0, then the ) must still be there
           if (*num_end == ')')
-            return res.succeed(value).until(num_end + 1) // Skip )
+            return res.succeed(value).until(num_end + 1); // Skip )
           else
             // something else 
-            return res.fail((const __FlashStringHelper*)INVALID_UNIT, unit_start);
+            return res.fail((const __FlashStringHelper*)INVALID_UNIT, num_end);
       }
 
       const char *unit_start = ++num_end; // skip *
